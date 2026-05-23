@@ -4,11 +4,11 @@
       <div class="logo">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
           <path d="M12 2 L22 7 V17 L12 22 L2 17 V7 Z" stroke="#00D4FF" stroke-width="1.5" fill="rgba(0, 212, 255, 0.15)"/>
-          <text x="12" y="16" text-anchor="middle" font-size="9" font-weight="800" fill="#00D4FF" font-family="Orbitron">PO</text>
+          <text x="12" y="16" text-anchor="middle" font-size="9" font-weight="800" fill="#00D4FF" font-family="Orbitron">DS</text>
         </svg>
       </div>
       <div class="brand-text">
-        <strong>PROFESSOR ONLINE</strong>
+        <strong>DIAMOND SPARK</strong>
         <span>Painel do Coach</span>
       </div>
     </div>

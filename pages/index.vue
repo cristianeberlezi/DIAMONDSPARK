@@ -15,7 +15,7 @@
     </div>
 
     <div class="footer">
-      <span>© 2026 Professor Online</span>
+      <span>© 2026 Diamond Spark</span>
       <span class="dot">•</span>
       <a href="#">Termos</a>
       <span class="dot">•</span>
@@ -30,7 +30,7 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Login — Professor Online'
+  title: 'Login — Diamond Spark'
 })
 
 const v1 = ref(null)

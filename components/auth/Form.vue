@@ -11,10 +11,10 @@
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
           <path d="M12 2 L22 7 V17 L12 22 L2 17 V7 Z" stroke="#00D4FF" stroke-width="1.5" fill="rgba(0, 212, 255, 0.1)"/>
           <path d="M12 2 L22 7 L12 12 L2 7 Z" fill="rgba(0, 212, 255, 0.25)" stroke="#00D4FF" stroke-width="1.5"/>
-          <text x="12" y="16" text-anchor="middle" font-size="9" font-weight="800" fill="#00D4FF" font-family="Orbitron">PO</text>
+          <text x="12" y="16" text-anchor="middle" font-size="9" font-weight="800" fill="#00D4FF" font-family="Orbitron">DS</text>
         </svg>
       </div>
-      <h1>PROFESSOR ONLINE</h1>
+      <h1>DIAMOND SPARK</h1>
       <p>Sua jornada de aprendizado começa aqui</p>
     </div>
 

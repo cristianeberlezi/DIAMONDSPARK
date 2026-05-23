@@ -198,7 +198,7 @@
 import { stats, quests, alunos, activity, profilesMap } from '~/components/admin/data.js'
 
 definePageMeta({ layout: 'default', middleware: ['auth', 'professor'] })
-useHead({ title: 'Admin Dashboard · Professor Online' })
+useHead({ title: 'Admin Dashboard · Diamond Spark' })
 
 const router = useRouter()
 
