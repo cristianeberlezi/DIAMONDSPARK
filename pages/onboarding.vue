@@ -80,7 +80,6 @@ useHead({ title: 'Onboarding — Descubra seu personagem' })
 
 const router = useRouter()
 const supabase = useSupabaseClient()
-const user = useSupabaseUser()
 
 const stage = ref('welcome') // welcome | step | loading | result
 const steps = ref([])
@@ -90,6 +89,17 @@ const currentStepIndex = ref(0)
 const winner = ref(null)
 const compatibility = ref(0)
 const entering = ref(false)
+const userId = ref(null)              // id do usuário autenticado, buscado ativamente
+
+async function ensureUserId() {
+  if (userId.value) return userId.value
+  const { data } = await supabase.auth.getUser()
+  if (data?.user?.id) {
+    userId.value = data.user.id
+    return userId.value
+  }
+  return null
+}
 
 // Carrega steps + perguntas do banco
 async function loadOnboarding() {
@@ -114,19 +124,54 @@ async function loadOnboarding() {
   questionsByStep.value = byStep
 
   // restaura respostas anteriores se existirem
-  if (user.value) {
+  const uid = await ensureUserId()
+  if (uid) {
     const { data: prev } = await supabase
       .from('onboarding_responses')
       .select('question_id, answer')
-      .eq('user_id', user.value.id)
+      .eq('user_id', uid)
     const restored = {}
     for (const r of prev || []) restored[r.question_id] = r.answer
     answers.value = restored
   }
 }
 
-onMounted(() => {
-  loadOnboarding()
+async function checkOnboardingDone() {
+  const uid = await ensureUserId()
+  if (!uid) return false
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('onboarding_done')
+    .eq('id', uid)
+    .single()
+  return profile?.onboarding_done === true
+}
+
+function findResumeStep() {
+  // Encontra o primeiro step com perguntas não respondidas
+  for (let i = 0; i < steps.value.length; i++) {
+    const stepQuestions = questionsByStep.value[steps.value[i].id] || []
+    if (!stepQuestions.length) continue
+    const allAnswered = stepQuestions.every(q => answers.value[q.id] !== undefined)
+    if (!allAnswered) return i
+  }
+  return steps.value.length - 1
+}
+
+onMounted(async () => {
+  // Se já concluiu onboarding, vai direto pro game
+  if (await checkOnboardingDone()) {
+    window.location.href = '/game'
+    return
+  }
+
+  await loadOnboarding()
+
+  // Se tem respostas salvas, retoma no step onde parou
+  if (Object.keys(answers.value).length > 0) {
+    currentStepIndex.value = findResumeStep()
+    stage.value = 'step'
+  }
 })
 
 const currentStep = computed(() => steps.value[currentStepIndex.value])
@@ -151,17 +196,23 @@ async function onStepNext(stepAnswers) {
   answers.value = { ...answers.value, ...stepAnswers }
 
   // Salva no banco (upsert)
-  if (user.value) {
+  const uid = await ensureUserId()
+  if (uid) {
     const rows = Object.entries(stepAnswers).map(([qId, ans]) => ({
-      user_id: user.value.id,
+      user_id: uid,
       question_id: parseInt(qId),
       answer: ans
     }))
     if (rows.length) {
-      await supabase
+      const { error: upsertErr } = await supabase
         .from('onboarding_responses')
         .upsert(rows, { onConflict: 'user_id,question_id' })
+      if (upsertErr) {
+        console.error('Erro ao salvar respostas:', upsertErr)
+      }
     }
+  } else {
+    console.warn('Sem user_id — respostas não foram salvas no banco')
   }
 
   if (currentStepIndex.value < steps.value.length - 1) {
@@ -176,10 +227,11 @@ function onStepBack() {
 }
 
 async function onLoadingDone() {
+  const uid = await ensureUserId()
   // Pede ao banco o cálculo via função SQL
-  if (user.value) {
+  if (uid) {
     const { data: results } = await supabase
-      .rpc('calculate_onboarding_results', { p_user_id: user.value.id })
+      .rpc('calculate_onboarding_results', { p_user_id: uid })
 
     if (results && results.length) {
       // Top Holland (categoria 'holland' com maior score)
@@ -205,15 +257,21 @@ async function onLoadingDone() {
 async function onAccept() {
   entering.value = true
 
-  if (user.value && winner.value) {
-    await supabase.from('profiles').update({
+  const uid = await ensureUserId()
+  if (uid && winner.value) {
+    const { error: updateErr } = await supabase.from('profiles').update({
       character_profile: winner.value.letter,
       onboarding_done: true
-    }).eq('id', user.value.id)
+    }).eq('id', uid)
+
+    if (updateErr) {
+      console.error('Erro ao salvar onboarding:', updateErr)
+    }
   }
 
   setTimeout(() => {
-    router.push('/game')
+    // Full reload pra garantir que middleware leia o novo estado
+    window.location.href = '/game'
   }, 1800)
 }
 

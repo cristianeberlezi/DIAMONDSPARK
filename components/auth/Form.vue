@@ -150,75 +150,125 @@ const form = ref({
 
 const router = useRouter()
 const supabase = useSupabaseClient()
+const user = useSupabaseUser()
 
 watch(mode, () => {
   error.value = ''
   info.value = ''
 })
 
+async function navigate(dest) {
+  // Confirma que a sessão está estabelecida antes de navegar.
+  // O middleware do destino tem fallback pra getSession(), então não precisamos
+  // esperar o ref do useSupabaseUser sincronizar.
+  let session = null
+  for (let i = 0; i < 20; i++) {
+    const { data } = await supabase.auth.getSession()
+    if (data?.session) { session = data.session; break }
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  console.log('[auth] navegando · session:', !!session, '· user.value:', !!user.value?.id)
+
+  if (!session) {
+    error.value = 'Sessão não foi criada. Verifique sua conexão e tente novamente.'
+    return
+  }
+
+  await navigateTo(dest)
+}
+
 async function onSubmit() {
   error.value = ''
   info.value = ''
+  loading.value = true
 
-  if (mode.value === 'signup') {
-    if (form.value.senha !== form.value.confirmar) {
-      error.value = 'As senhas não conferem.'
-      return
-    }
-    if (form.value.senha.length < 6) {
-      error.value = 'A senha precisa ter ao menos 6 caracteres.'
-      return
-    }
-
-    loading.value = true
-    const { error: err } = await supabase.auth.signUp({
-      email: form.value.email,
-      password: form.value.senha,
-      options: {
-        data: {
-          name: form.value.nome,
-          role: 'aluno'
-        }
+  try {
+    if (mode.value === 'signup') {
+      if (form.value.senha !== form.value.confirmar) {
+        error.value = 'As senhas não conferem.'
+        return
       }
+      if (form.value.senha.length < 6) {
+        error.value = 'A senha precisa ter ao menos 6 caracteres.'
+        return
+      }
+
+      const { data, error: err } = await supabase.auth.signUp({
+        email: form.value.email,
+        password: form.value.senha,
+        options: {
+          data: {
+            name: form.value.nome,
+            role: 'aluno'
+          }
+        }
+      })
+
+      if (err) {
+        error.value = traduzir(err.message)
+        console.error('signUp error:', err)
+        return
+      }
+
+      console.log('[auth] signUp ok · session:', data.session ? 'sim' : 'não')
+
+      // Se Supabase exige confirmação de email, data.session vem null.
+      // Tentamos sign in imediato.
+      if (!data.session) {
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: form.value.email,
+          password: form.value.senha
+        })
+        if (signInErr) {
+          info.value = 'Conta criada! Confirme seu e-mail para continuar.'
+          console.warn('Auto sign-in falhou:', signInErr.message)
+          return
+        }
+        console.log('[auth] auto sign-in ok')
+      }
+
+      console.log('[auth] redirecionando para /onboarding')
+      await navigate('/onboarding')
+      return
+    }
+
+    // ===== LOGIN =====
+    const { data, error: err } = await supabase.auth.signInWithPassword({
+      email: form.value.email,
+      password: form.value.senha
     })
-    loading.value = false
 
     if (err) {
       error.value = traduzir(err.message)
+      console.error('signIn error:', err)
       return
     }
 
-    // Aluno sempre vai pro onboarding descobrir o perfil RIASEC
-    router.push('/onboarding')
-    return
-  }
+    console.log('[auth] login ok · user:', data.user?.id)
 
-  // login
-  loading.value = true
-  const { data, error: err } = await supabase.auth.signInWithPassword({
-    email: form.value.email,
-    password: form.value.senha
-  })
-  loading.value = false
+    // busca role + onboarding_done pra decidir destino
+    let dest = '/onboarding'
+    if (data.user?.id) {
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('role, onboarding_done')
+        .eq('id', data.user.id)
+        .single()
 
-  if (err) {
-    error.value = traduzir(err.message)
-    return
-  }
+      if (profileErr) {
+        console.warn('Erro ao buscar profile:', profileErr.message)
+      }
+      if (profile?.role === 'professor') dest = '/admin'
+      else if (profile?.onboarding_done) dest = '/game'
+    }
 
-  // busca role do usuário pra decidir destino
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, onboarding_done')
-    .eq('id', data.user.id)
-    .single()
-
-  if (profile?.role === 'professor') {
-    router.push('/admin')
-  } else if (profile?.onboarding_done) {
-    router.push('/game')
-  } else {
-    router.push('/onboarding')
+    console.log('[auth] redirecionando para', dest)
+    await navigate(dest)
+  } catch (e) {
+    error.value = 'Erro inesperado: ' + (e?.message || 'tente novamente')
+    console.error('[auth] erro inesperado:', e)
+  } finally {
+    loading.value = false
   }
 }
 

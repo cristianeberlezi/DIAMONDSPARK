@@ -2,14 +2,21 @@
 // Uso: definePageMeta({ middleware: ['auth', 'professor'] })
 
 export default defineNuxtRouteMiddleware(async () => {
-  const user = useSupabaseUser()
-  if (!user.value) return navigateTo('/login')
-
   const supabase = useSupabaseClient()
+
+  // Resolve userId via ref ou sessão (mais robusto que confiar só no ref)
+  const user = useSupabaseUser()
+  let userId = user.value?.id
+  if (!userId) {
+    const { data } = await supabase.auth.getSession()
+    userId = data?.session?.user?.id
+  }
+  if (!userId) return navigateTo('/')
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', user.value.id)
+    .eq('id', userId)
     .single()
 
   if (profile?.role !== 'professor') {
