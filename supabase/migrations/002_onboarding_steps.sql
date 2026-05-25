@@ -136,7 +136,7 @@ insert into public.onboarding_questions (step_id, order_num, text) values
 
 -- Step 3 - Artístico
 insert into public.onboarding_questions (step_id, order_num, text) values
-  ((select id from public.onboarding_steps where code='A'), 1, 'Fazer atividades, jogos e trabalhos da escola totalmente sozinho(a).'),
+  ((select id from public.onboarding_steps where code='A'), 1, 'Não Fazer atividades, jogos e trabalhos da escola totalmente sozinho(a).'),
   ((select id from public.onboarding_steps where code='A'), 2, 'Ler ou ver vídeos sobre bandas, artistas, filmes e músicas.'),
   ((select id from public.onboarding_steps where code='A'), 3, 'Escrever redações, histórias, fanfics ou poemas.'),
   ((select id from public.onboarding_steps where code='A'), 4, 'Pensar em formas diferentes ou totalmente novas de fazer as coisas.'),
